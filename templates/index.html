@@ -1,86 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Deadlock Prevention & Recovery Toolkit</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <div class="app-container">
-    <header>
-      <h1>Deadlock Prevention & Recovery Toolkit</h1>
-      <p>Banker's Algorithm • Deadlock Detection • Recovery • Visualization</p>
-    </header>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Deadlock Prevention & Recovery Toolkit</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <header>
+        <h1>Deadlock Prevention & Recovery Toolkit</h1>
+        <p>
+          Banker's Algorithm • Deadlock Detection • Recovery • Visualization
+        </p>
+      </header>
 
-    <main>
-      <section class="config-section">
-        <h2>1. System Configuration</h2>
-        <label>Number of Processes (n):
-          <input type="number" id="num-processes" min="1" value="5">
-        </label>
-        <label>Number of Resource Types (m):
-          <input type="number" id="num-resources" min="1" value="3">
-        </label>
-        <button id="btn-init">Initialize System</button>
-      </section>
-
-      <section class="matrices-section" id="matrices-section" style="display:none;">
-        <h2>2. System Matrices</h2>
-        <div class="matrix-grid">
-          <div>
-            <h3>Max Matrix</h3>
-            <div id="max-matrix"></div>
-          </div>
-          <div>
-            <h3>Allocation Matrix</h3>
-            <div id="alloc-matrix"></div>
-          </div>
-          <div>
-            <h3>Need Matrix</h3>
-            <div id="need-matrix"></div>
-          </div>
-        </div>
-
-        <div class="available-row">
-          <h3>Available Vector</h3>
-          <div id="available-vector"></div>
-        </div>
-
-        <button id="btn-update-state">Update System State</button>
-      </section>
-
-      <section class="ops-section" id="ops-section" style="display:none;">
-        <h2>3. Operations</h2>
-        <div class="ops-buttons">
-          <button id="btn-check-safe">Check Safe State</button>
-          <button id="btn-detect-deadlock">Detect Deadlock</button>
-          <button id="btn-recover">Recover from Deadlock</button>
-        </div>
-
-        <div class="request-box">
-          <h3>Resource Request (Banker's Algorithm)</h3>
-          <label>Process ID:
-            <input type="number" id="req-pid" min="0" value="0">
+      <main>
+        <section class="config-section">
+          <h2>1. System Configuration</h2>
+          <label
+            >Number of Processes (n):
+            <input type="number" id="num-processes" min="1" value="5" />
           </label>
-          <label>Request Vector (comma separated):
-            <input type="text" id="req-vector" placeholder="e.g. 1,0,2">
+          <label
+            >Number of Resource Types (m):
+            <input type="number" id="num-resources" min="1" value="3" />
           </label>
-          <button id="btn-request">Submit Request</button>
-        </div>
+          <button id="btn-init">Initialize System</button>
+        </section>
 
-        <div class="log-box">
-          <h3>Log</h3>
-          <div id="log-output"></div>
-        </div>
+        <section
+          class="matrices-section"
+          id="matrices-section"
+          style="display: none"
+        >
+          <h2>2. System Matrices</h2>
+          <div class="matrix-grid">
+            <div>
+              <h3>Max Matrix</h3>
+              <div id="max-matrix"></div>
+            </div>
+            <div>
+              <h3>Allocation Matrix</h3>
+              <div id="alloc-matrix"></div>
+            </div>
+            <div>
+              <h3>Need Matrix</h3>
+              <div id="need-matrix"></div>
+            </div>
+          </div>
 
-        <div class="graph-box">
-          <h3>Wait-For Graph (Adjacency List)</h3>
-          <pre id="graph-output"></pre>
-        </div>
-      </section>
-    </main>
-  </div>
+          <div class="available-row">
+            <h3>Available Vector</h3>
+            <div id="available-vector"></div>
+          </div>
 
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
-</body>
+          <button id="btn-update-state">Update System State</button>
+        </section>
+
+        <section class="ops-section" id="ops-section" style="display: none">
+          <h2>3. Operations</h2>
+          <div class="ops-buttons">
+            <button id="btn-check-safe">Check Safe State</button>
+            <button id="btn-detect-deadlock">Detect Deadlock</button>
+            <button id="btn-recover">Recover from Deadlock</button>
+          </div>
+
+          <div class="request-box">
+            <h3>Resource Request (Banker's Algorithm)</h3>
+            <label
+              >Process ID:
+              <input type="number" id="req-pid" min="0" value="0" />
+            </label>
+            <label
+              >Request Vector (comma separated):
+              <input type="text" id="req-vector" placeholder="e.g. 1,0,2" />
+            </label>
+            <button id="btn-request">Submit Request</button>
+          </div>
+
+          <div class="log-box">
+            <h3>Log</h3>
+            <div id="log-output"></div>
+          </div>
+
+          <div class="graph-box">
+            <h3>Wait-For Graph (Adjacency List)</h3>
+            <pre id="graph-output"></pre>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
 </html>
