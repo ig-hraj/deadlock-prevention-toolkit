@@ -39,3 +39,14 @@ python app.py
 
 # Open in browser
 http://127.0.0.1:5000/
+
+## How It Works (Internally)
+
+1. User sets number of processes `n` and resource types `m`.
+2. Frontend builds dynamic HTML tables for Max, Allocation, and Need.
+3. On "Update System State", data is sent to Flask.
+4. `DeadlockToolkit` recomputes Need and Wait-For graph.
+5. User can:
+   - Check safe state
+   - Detect deadlock
+   - Recover using process abortion
