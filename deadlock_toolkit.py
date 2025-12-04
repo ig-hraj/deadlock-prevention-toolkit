@@ -5,18 +5,32 @@ class DeadlockToolkit:
         self.n = n  # number of processes
         self.m = m  # number of resource types
 
-        # Matrices
-        self.max_need = [[0] * m for _ in range(n)]
-        self.alloc = [[0] * m for _ in range(n)]
-        self.need = [[0] * m for _ in range(n)]
-        self.avail = [0] * m
+        # Matrices and vectors
+        self.max_need = [[0] * m for _ in range(n)]  # Max matrix
+        self.alloc = [[0] * m for _ in range(n)]     # Allocation matrix
+        self.need = [[0] * m for _ in range(n)]      # Need matrix
+        self.avail = [0] * m                         # Available vector
+        self.total = [0] * m                         # Total resources vector
 
     def update_need(self):
+        """Recalculate Need = Max - Allocation."""
         for i in range(self.n):
             for j in range(self.m):
                 self.need[i][j] = self.max_need[i][j] - self.alloc[i][j]
 
+    def update_available_from_total(self):
+        """Compute Available = Total - sum(Allocation column-wise)."""
+        allocated_sum = [0] * self.m
+        for j in range(self.m):
+            col_sum = 0
+            for i in range(self.n):
+                col_sum += self.alloc[i][j]
+            allocated_sum[j] = col_sum
+
+        self.avail = [self.total[j] - allocated_sum[j] for j in range(self.m)]
+
     def is_safe(self):
+        """Banker's safety algorithm. Returns (is_safe, safe_sequence)."""
         work = self.avail[:]
         finish = [False] * self.n
         safe_seq = []
@@ -42,15 +56,16 @@ class DeadlockToolkit:
         return all(finish), safe_seq
 
     def request_resources(self, pid, req):
+        """Banker's resource request algorithm."""
         if pid < 0 or pid >= self.n:
             return False, "Invalid process ID."
 
-        # 1) Request <= Need?
+        # Request <= Need ?
         for j in range(self.m):
             if req[j] > self.need[pid][j]:
                 return False, "Request exceeds process max claim."
 
-        # 2) Request <= Available?
+        # Request <= Available ?
         for j in range(self.m):
             if req[j] > self.avail[j]:
                 return False, "Resources unavailable. Process must wait."
@@ -63,7 +78,8 @@ class DeadlockToolkit:
 
         safe, seq = self.is_safe()
         if safe:
-            return True, "Request granted. Safe sequence: " + " -> ".join(f"P{p}" for p in seq)
+            msg = "Request granted. Safe sequence: " + " -> ".join(f"P{p}" for p in seq)
+            return True, msg
         else:
             # Rollback
             for j in range(self.m):
@@ -73,6 +89,7 @@ class DeadlockToolkit:
             return False, "Request would lead to UNSAFE state. Rolled back."
 
     def detect_deadlock(self):
+        """Deadlock detection using the same safety logic."""
         safe, seq = self.is_safe()
         if safe:
             return []
@@ -81,17 +98,18 @@ class DeadlockToolkit:
         return deadlocked
 
     def recover(self):
+        """Deadlock recovery by aborting a victim process."""
         deadlocked = self.detect_deadlock()
         if not deadlocked:
             return None, "No deadlock detected. No recovery needed."
 
-        # Victim selection: process with max allocated resources
+        # Victim selection: process with maximum allocated resources
         victim = None
-        max_alloc = -1
+        max_alloc_sum = -1
         for p in deadlocked:
             s = sum(self.alloc[p])
-            if s > max_alloc:
-                max_alloc = s
+            if s > max_alloc_sum:
+                max_alloc_sum = s
                 victim = p
 
         # Release victim resources
@@ -104,16 +122,19 @@ class DeadlockToolkit:
 
     def build_wait_for_graph(self):
         """
-        Returns adjacency:
+        Build wait-for graph as adjacency list:
         { process_i: [list_of_processes_it_waits_for] }
         """
         graph = {i: set() for i in range(self.n)}
 
         for i in range(self.n):
             for j in range(self.m):
+                # If Pi still needs resource j and no instance of j is available
                 if self.need[i][j] > 0 and self.avail[j] == 0:
+                    # Then Pi might be waiting for some process that holds j
                     for k in range(self.n):
                         if self.alloc[k][j] > 0 and k != i:
                             graph[i].add(k)
 
+        # Convert sets to lists for JSON-serializable output
         return {k: list(v) for k, v in graph.items()}

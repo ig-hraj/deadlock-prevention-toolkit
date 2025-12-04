@@ -3,6 +3,8 @@
 let n = 0;
 let m = 0;
 
+/* ---------- Helpers to build and read matrices ---------- */
+
 function createMatrixTable(containerId, rows, cols, editable = true) {
   const container = document.getElementById(containerId);
   container.innerHTML = "";
@@ -47,18 +49,6 @@ function createMatrixTable(containerId, rows, cols, editable = true) {
   container.appendChild(table);
 }
 
-function createAvailableVector(containerId, cols) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = "";
-  for (let j = 0; j < cols; j++) {
-    const inp = document.createElement("input");
-    inp.type = "number";
-    inp.value = "0";
-    inp.dataset.col = j;
-    container.appendChild(inp);
-  }
-}
-
 function readEditableMatrix(containerId, rows, cols) {
   const container = document.getElementById(containerId);
   const inputs = container.querySelectorAll("input");
@@ -81,23 +71,28 @@ function setReadOnlyMatrix(containerId, matrix) {
   for (let i = 0; i < matrix.length; i++) {
     for (let j = 0; j < matrix[0].length; j++) {
       const row = tbody.children[i];
-      const cell = row.children[j + 1];
+      const cell = row.children[j + 1]; // +1 to skip process header
       cell.textContent = matrix[i][j];
     }
   }
 }
 
-function readAvailableVector(containerId, cols) {
+function renderAvailableVector(containerId, arr) {
   const container = document.getElementById(containerId);
-  const inputs = container.querySelectorAll("input");
-  const arr = Array(cols).fill(0);
-  inputs.forEach(inp => {
-    const c = parseInt(inp.dataset.col);
-    const val = parseInt(inp.value) || 0;
-    arr[c] = val;
+  container.innerHTML = "";
+  if (!arr || arr.length === 0) {
+    container.textContent = "(not computed)";
+    return;
+  }
+  arr.forEach((val, idx) => {
+    const span = document.createElement("span");
+    span.className = "avail-cell";
+    span.textContent = `R${idx}=${val}`;
+    container.appendChild(span);
   });
-  return arr;
 }
+
+/* ---------- Logging helper ---------- */
 
 function logLine(text, type = "normal") {
   const log = document.getElementById("log-output");
@@ -110,7 +105,7 @@ function logLine(text, type = "normal") {
   log.scrollTop = log.scrollHeight;
 }
 
-// === Event Listeners ===
+/* ---------- Button Handlers ---------- */
 
 document.getElementById("btn-init").addEventListener("click", async () => {
   n = parseInt(document.getElementById("num-processes").value);
@@ -121,16 +116,17 @@ document.getElementById("btn-init").addEventListener("click", async () => {
     return;
   }
 
+  // Inform backend to create a new toolkit
   await fetch("/api/init", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ n, m })
   });
 
+  // Build UI matrices
   createMatrixTable("max-matrix", n, m, true);
   createMatrixTable("alloc-matrix", n, m, true);
   createMatrixTable("need-matrix", n, m, false);
-  createAvailableVector("available-vector", m);
 
   document.getElementById("matrices-section").style.display = "block";
   document.getElementById("ops-section").style.display = "block";
@@ -143,28 +139,42 @@ document.getElementById("btn-update-state").addEventListener("click", async () =
 
   const maxMat = readEditableMatrix("max-matrix", n, m);
   const allocMat = readEditableMatrix("alloc-matrix", n, m);
-  const availVec = readAvailableVector("available-vector", m);
+
+  const totalText = document.getElementById("total-resources").value.trim();
+  if (!totalText) {
+    logLine("Please enter the Total Resources vector (comma separated).", "error");
+    return;
+  }
+  const totalParts = totalText.split(",");
+  if (totalParts.length !== m) {
+    logLine(`Total vector must have exactly ${m} values.`, "error");
+    return;
+  }
+  const totalVec = totalParts.map(x => parseInt(x.trim()) || 0);
 
   const res = await fetch("/api/update_state", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      n, m,
+      n,
+      m,
       max: maxMat,
       alloc: allocMat,
-      avail: availVec
+      total: totalVec
     })
   });
   const data = await res.json();
 
   setReadOnlyMatrix("need-matrix", data.need);
-  logLine("System state updated from UI.", "ok");
+  renderAvailableVector("available-vector", data.avail);
+  logLine("System state updated from UI (Need & Available computed).", "ok");
   document.getElementById("graph-output").textContent = JSON.stringify(data.graph, null, 2);
 });
 
 document.getElementById("btn-check-safe").addEventListener("click", async () => {
   const res = await fetch("/api/check_safe", { method: "GET" });
   const data = await res.json();
+  renderAvailableVector("available-vector", data.avail);
   if (data.safe) {
     logLine("System is in SAFE state. Sequence: " + data.sequence.join(" -> "), "ok");
   } else {
@@ -175,6 +185,7 @@ document.getElementById("btn-check-safe").addEventListener("click", async () => 
 document.getElementById("btn-detect-deadlock").addEventListener("click", async () => {
   const res = await fetch("/api/detect_deadlock", { method: "GET" });
   const data = await res.json();
+  renderAvailableVector("available-vector", data.avail);
   if (data.deadlocked.length === 0) {
     logLine("No deadlock detected.", "ok");
   } else {
@@ -185,6 +196,7 @@ document.getElementById("btn-detect-deadlock").addEventListener("click", async (
 document.getElementById("btn-recover").addEventListener("click", async () => {
   const res = await fetch("/api/recover", { method: "POST" });
   const data = await res.json();
+  renderAvailableVector("available-vector", data.avail);
   if (data.victim === null) {
     logLine(data.message, "ok");
   } else {
@@ -201,10 +213,13 @@ document.getElementById("btn-recover").addEventListener("click", async () => {
 document.getElementById("btn-request").addEventListener("click", async () => {
   const pid = parseInt(document.getElementById("req-pid").value);
   const vecText = document.getElementById("req-vector").value.trim();
-  if (!vecText) return;
+  if (!vecText) {
+    logLine("Please enter a request vector.", "error");
+    return;
+  }
   const parts = vecText.split(",");
   if (parts.length !== m) {
-    logLine(`Invalid request. Need ${m} values.`, "error");
+    logLine(`Invalid request. Need exactly ${m} values.`, "error");
     return;
   }
   const req = parts.map(x => parseInt(x.trim()) || 0);
@@ -215,6 +230,8 @@ document.getElementById("btn-request").addEventListener("click", async () => {
     body: JSON.stringify({ pid, req })
   });
   const data = await res.json();
+
+  renderAvailableVector("available-vector", data.avail);
 
   if (data.granted) {
     logLine(`Request by P${pid}: ${data.message}`, "ok");
